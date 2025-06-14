@@ -9,7 +9,275 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      listings: {
+        Row: {
+          available_space_kg: number | null
+          created_at: string | null
+          description: string | null
+          destination: string
+          dimensions: string | null
+          id: string
+          is_active: boolean | null
+          origin: string
+          price_usd: number
+          title: string
+          travel_date: string
+          type: Database["public"]["Enums"]["listing_type"]
+          updated_at: string | null
+          user_id: string | null
+          weight_kg: number | null
+        }
+        Insert: {
+          available_space_kg?: number | null
+          created_at?: string | null
+          description?: string | null
+          destination: string
+          dimensions?: string | null
+          id?: string
+          is_active?: boolean | null
+          origin: string
+          price_usd: number
+          title: string
+          travel_date: string
+          type: Database["public"]["Enums"]["listing_type"]
+          updated_at?: string | null
+          user_id?: string | null
+          weight_kg?: number | null
+        }
+        Update: {
+          available_space_kg?: number | null
+          created_at?: string | null
+          description?: string | null
+          destination?: string
+          dimensions?: string | null
+          id?: string
+          is_active?: boolean | null
+          origin?: string
+          price_usd?: number
+          title?: string
+          travel_date?: string
+          type?: Database["public"]["Enums"]["listing_type"]
+          updated_at?: string | null
+          user_id?: string | null
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          created_at: string | null
+          id: string
+          listing_id: string | null
+          price_agreed: number | null
+          sender_id: string | null
+          status: Database["public"]["Enums"]["match_status"] | null
+          traveler_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          listing_id?: string | null
+          price_agreed?: number | null
+          sender_id?: string | null
+          status?: Database["public"]["Enums"]["match_status"] | null
+          traveler_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          listing_id?: string | null
+          price_agreed?: number | null
+          sender_id?: string | null
+          status?: Database["public"]["Enums"]["match_status"] | null
+          traveler_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_traveler_id_fkey"
+            columns: ["traveler_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          match_id: string | null
+          sender_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          match_id?: string | null
+          sender_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          match_id?: string | null
+          sender_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          address_proof_url: string | null
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          email_verified: boolean | null
+          full_name: string
+          id: string
+          id_document_url: string | null
+          id_verified: Database["public"]["Enums"]["verification_status"] | null
+          phone: string | null
+          rating: number | null
+          role: Database["public"]["Enums"]["user_role"]
+          total_ratings: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          address_proof_url?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          email_verified?: boolean | null
+          full_name: string
+          id: string
+          id_document_url?: string | null
+          id_verified?:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
+          phone?: string | null
+          rating?: number | null
+          role?: Database["public"]["Enums"]["user_role"]
+          total_ratings?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          address_proof_url?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          email_verified?: boolean | null
+          full_name?: string
+          id?: string
+          id_document_url?: string | null
+          id_verified?:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
+          phone?: string | null
+          rating?: number | null
+          role?: Database["public"]["Enums"]["user_role"]
+          total_ratings?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ratings: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          match_id: string | null
+          rated_id: string | null
+          rater_id: string | null
+          rating: number | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          match_id?: string | null
+          rated_id?: string | null
+          rater_id?: string | null
+          rating?: number | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          match_id?: string | null
+          rated_id?: string | null
+          rater_id?: string | null
+          rating?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_rated_id_fkey"
+            columns: ["rated_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_rater_id_fkey"
+            columns: ["rater_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +286,10 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      listing_type: "space_available" | "delivery_request"
+      match_status: "pending" | "accepted" | "completed" | "cancelled"
+      user_role: "traveler" | "sender"
+      verification_status: "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +404,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      listing_type: ["space_available", "delivery_request"],
+      match_status: ["pending", "accepted", "completed", "cancelled"],
+      user_role: ["traveler", "sender"],
+      verification_status: ["pending", "verified", "rejected"],
+    },
   },
 } as const
