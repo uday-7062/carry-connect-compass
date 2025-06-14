@@ -19,6 +19,7 @@ type Listing = {
   weight_kg?: number;
   available_space_kg?: number;
   type: 'space_available' | 'delivery_request';
+  user_id?: string;
   profiles?: {
     full_name: string;
     rating: number;
@@ -186,10 +187,10 @@ export const HomeTab = () => {
                   <Button 
                     size="sm"
                     onClick={() => {
-                      if (profile?.role === 'traveler' && listing.type === 'delivery_request') {
-                        createMatch(listing.id, profile.id, listing.user_id!);
-                      } else if (profile?.role === 'sender' && listing.type === 'space_available') {
-                        createMatch(listing.id, listing.user_id!, profile.id);
+                      if (profile?.role === 'traveler' && listing.type === 'delivery_request' && listing.user_id) {
+                        createMatch(listing.id, profile.id, listing.user_id);
+                      } else if (profile?.role === 'sender' && listing.type === 'space_available' && listing.user_id) {
+                        createMatch(listing.id, listing.user_id, profile.id);
                       }
                     }}
                     disabled={

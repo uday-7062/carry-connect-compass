@@ -12,7 +12,7 @@ export const SearchTab = () => {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'space_available' | 'delivery_request'>('all');
 
   const searchListings = async () => {
     setLoading(true);
@@ -65,7 +65,7 @@ export const SearchTab = () => {
         </div>
         
         <div className="flex gap-3">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={typeFilter} onValueChange={(value: 'all' | 'space_available' | 'delivery_request') => setTypeFilter(value)}>
             <SelectTrigger className="flex-1">
               <SelectValue placeholder="Filter by type" />
             </SelectTrigger>
