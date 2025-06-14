@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -43,6 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -55,24 +57,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const fetchProfile = async (userId: string) => {
+    console.log('Fetching profile for user:', userId);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
     
-    if (data) setProfile(data);
+    if (error) {
+      console.error('Error fetching profile:', error);
+    } else {
+      console.log('Profile fetched:', data);
+      setProfile(data);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('Signing in user:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    if (error) {
+      console.error('Sign in error:', error);
+    }
+    
     return { error };
   };
 
   const signUp = async (email: string, password: string, fullName: string, role: 'traveler' | 'sender') => {
+    console.log('Signing up user:', email, 'with role:', role);
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -86,16 +101,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     });
+    
+    if (error) {
+      console.error('Sign up error:', error);
+    }
+    
     return { error };
   };
 
   const signOut = async () => {
+    console.log('Signing out user');
     await supabase.auth.signOut();
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: 'No user logged in' };
     
+    console.log('Updating profile:', updates);
     const { error } = await supabase
       .from('profiles')
       .update(updates)
@@ -103,6 +125,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     if (!error && profile) {
       setProfile({ ...profile, ...updates });
+    }
+    
+    if (error) {
+      console.error('Profile update error:', error);
     }
     
     return { error };
