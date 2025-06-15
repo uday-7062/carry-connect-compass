@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Send, Paperclip, Image, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PaymentButton } from '@/components/PaymentButton';
+import { RatingDialog } from '@/components/RatingDialog';
 
 interface Message {
   id: string;
@@ -42,6 +43,9 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [typing, setTyping] = useState(false);
+  const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
+  const [hasRated, setHasRated] = useState(false);
+  const [checkingRatingStatus, setCheckingRatingStatus] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -51,6 +55,7 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
 
   useEffect(() => {
     fetchMessages();
+    checkIfRated();
     markMessagesAsRead();
     
     // Set up real-time subscription
@@ -117,6 +122,26 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
       setMessages(data || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
+    }
+  };
+
+  const checkIfRated = async () => {
+    if (!profile) return;
+    setCheckingRatingStatus(true);
+    try {
+        const { data, error } = await supabase
+            .from('ratings')
+            .select('id')
+            .eq('match_id', matchId)
+            .eq('rater_id', profile.id)
+            .limit(1);
+
+        if (error) throw error;
+        setHasRated(data && data.length > 0);
+    } catch (error) {
+        console.error("Error checking rating status:", error);
+    } finally {
+        setCheckingRatingStatus(false);
     }
   };
 
@@ -247,6 +272,18 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
           </div>
         )}
         
+        {matchStatus === 'completed' && !checkingRatingStatus && (
+          <div className="border-t p-4 bg-gray-50">
+            {hasRated ? (
+              <p className="text-sm text-center text-gray-500">You have already rated {otherUser.full_name}.</p>
+            ) : (
+              <Button className="w-full" onClick={() => setIsRatingDialogOpen(true)}>
+                Rate {otherUser.full_name}
+              </Button>
+            )}
+          </div>
+        )}
+        
         <div className="border-t p-4">
           <div className="flex space-x-2">
             <Button variant="ghost" size="sm">
@@ -269,6 +306,16 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
           </div>
         </div>
       </CardContent>
+      <RatingDialog
+        open={isRatingDialogOpen}
+        onOpenChange={setIsRatingDialogOpen}
+        matchId={matchId}
+        ratedId={otherUser.id}
+        ratedName={otherUser.full_name}
+        onSuccess={() => {
+          setHasRated(true);
+        }}
+      />
     </Card>
   );
 };
