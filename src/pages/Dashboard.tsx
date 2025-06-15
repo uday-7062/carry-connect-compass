@@ -5,7 +5,7 @@ import { MobileHeader } from '@/components/ui/mobile-header';
 import { BottomNav } from '@/components/ui/bottom-nav';
 import { HomeTab } from '@/components/dashboard/HomeTab';
 import { SearchTab } from '@/components/dashboard/SearchTab';
-import { CreateTab } from '@/components/dashboard/CreateTab';
+import { CreateTabWithPricing } from '@/components/dashboard/CreateTabWithPricing';
 import { MessagesTab } from '@/components/dashboard/MessagesTab';
 import { ProfileTab } from '@/components/dashboard/ProfileTab';
 import { PaymentsTab } from '@/components/dashboard/PaymentsTab';
@@ -30,7 +30,7 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'home': return <HomeTab />;
       case 'search': return <SearchTab />;
-      case 'create': return <CreateTab />;
+      case 'create': return <CreateTabWithPricing />;
       case 'messages': return <MessagesTab />;
       case 'payments': return <PaymentsTab />;
       case 'profile': return <ProfileTab />;
