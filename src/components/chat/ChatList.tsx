@@ -21,12 +21,12 @@ interface Match {
     id: string;
     full_name: string;
     avatar_url?: string;
-  };
+  } | null;
   sender: {
     id: string;
     full_name: string;
     avatar_url?: string;
-  };
+  } | null;
   unread_count?: number;
   last_message?: {
     content: string;
@@ -95,9 +95,14 @@ export const ChatList = () => {
 
       if (error) throw error;
 
+      // Filter out matches with null traveler or sender to prevent errors
+      const validMatches = (data || []).filter(match => 
+        match.traveler && match.sender
+      );
+
       // Fetch unread message counts and last messages for each match
       const matchesWithMessages = await Promise.all(
-        (data || []).map(async (match) => {
+        validMatches.map(async (match) => {
           const { data: unreadMessages } = await supabase
             .from('messages')
             .select('id')
@@ -152,6 +157,13 @@ export const ChatList = () => {
   }
 
   if (selectedMatch) {
+    // Add null checks before accessing properties
+    if (!selectedMatch.traveler || !selectedMatch.sender) {
+      console.error('Invalid match data - missing traveler or sender');
+      setSelectedMatch(null);
+      return null;
+    }
+
     const otherUser = selectedMatch.traveler.id === profile?.id 
       ? selectedMatch.sender 
       : selectedMatch.traveler;
@@ -180,6 +192,12 @@ export const ChatList = () => {
       ) : (
         <div className="space-y-3">
           {matches.map((match) => {
+            // Add null checks before accessing properties
+            if (!match.traveler || !match.sender) {
+              console.error('Invalid match data for match:', match.id);
+              return null;
+            }
+
             const otherUser = match.traveler.id === profile?.id ? match.sender : match.traveler;
             
             return (
@@ -237,7 +255,7 @@ export const ChatList = () => {
                 </CardContent>
               </Card>
             );
-          })}
+          }).filter(Boolean)}
         </div>
       )}
     </div>
