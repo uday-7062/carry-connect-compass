@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Star, LogOut, User, Mail, Phone, MapPin, Shield, Camera, Upload, FileText } from 'lucide-react';
+import { Star, LogOut, User, Mail, Phone, MapPin, Shield, Camera, Upload, FileText, Luggage, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,13 +15,24 @@ export const ProfileTab = () => {
   const { profile, signOut, updateProfile } = useAuth();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
-    full_name: profile?.full_name || '',
-    phone: profile?.phone || '',
-    address: profile?.address || ''
+    full_name: '',
+    phone: '',
+    address: ''
   });
   const [loading, setLoading] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const { toast } = useToast();
+
+  // Pre-fill form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
+        address: profile.address || ''
+      });
+    }
+  }, [profile]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -144,7 +154,7 @@ export const ProfileTab = () => {
               
               <div className="flex items-center space-x-2 mt-2">
                 <Badge variant="outline" className="capitalize">
-                  {profile?.role}
+                  {profile?.role || 'Not set'}
                 </Badge>
                 <div className="flex items-center text-sm">
                   <Star className="h-4 w-4 text-yellow-500 fill-current mr-1" />
@@ -158,6 +168,30 @@ export const ProfileTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Role Information */}
+      {profile?.role && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              {profile.role === 'traveler' ? (
+                <Luggage className="h-5 w-5 mr-2" />
+              ) : (
+                <Send className="h-5 w-5 mr-2" />
+              )}
+              Your Role: {profile.role === 'traveler' ? 'Traveler' : 'Sender'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 text-sm">
+              {profile.role === 'traveler' 
+                ? 'You can create travel listings and earn money by carrying items for others during your trips.'
+                : 'You can find travelers and request them to carry your items to destinations around the world.'
+              }
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Verification Status */}
       <Card>
