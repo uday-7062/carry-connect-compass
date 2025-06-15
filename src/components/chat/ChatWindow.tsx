@@ -13,6 +13,8 @@ import { PaymentButton } from '@/components/PaymentButton';
 import { RatingDialog } from '@/components/RatingDialog';
 import { TrustBadges } from '@/components/TrustBadges';
 import { ChatMessageImage } from './ChatMessageImage';
+import { Flag } from "lucide-react";
+import { ReportUserDialog } from "./ReportUserDialog";
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -64,6 +66,7 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
   const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -362,7 +365,18 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
               {typing && <p className="text-xs text-gray-500">typing...</p>}
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              aria-label="Report user"
+              onClick={() => setIsReportDialogOpen(true)}
+            >
+              <Flag className="h-5 w-5 text-red-600" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
+          </div>
         </div>
       </CardHeader>
       
@@ -475,6 +489,13 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
         onSuccess={() => {
           setHasRated(true);
         }}
+      />
+      <ReportUserDialog
+        open={isReportDialogOpen}
+        onOpenChange={setIsReportDialogOpen}
+        reportedUserId={otherUser.id}
+        reporterId={profile?.id || ""}
+        reportedUserName={otherUser.full_name}
       />
     </Card>
   );
