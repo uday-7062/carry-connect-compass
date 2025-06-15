@@ -1,0 +1,258 @@
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { PriceEstimator } from '@/components/ai/PriceEstimator';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { CalendarDays, MapPin, Package, FileText } from 'lucide-react';
+
+export const CreateTabWithPricing = () => {
+  const [formData, setFormData] = useState({
+    type: 'package' as 'package' | 'space',
+    title: '',
+    description: '',
+    origin: '',
+    destination: '',
+    travel_date: '',
+    weight_kg: '',
+    dimensions: '',
+    available_space_kg: '',
+    price_usd: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const { profile } = useAuth();
+  const { toast } = useToast();
+
+  const handlePriceEstimated = (price: number) => {
+    setFormData(prev => ({ ...prev, price_usd: price.toString() }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+
+    setLoading(true);
+    try {
+      const listingData = {
+        user_id: profile.id,
+        type: formData.type,
+        title: formData.title,
+        description: formData.description,
+        origin: formData.origin,
+        destination: formData.destination,
+        travel_date: formData.travel_date,
+        price_usd: parseFloat(formData.price_usd) || 0,
+        weight_kg: formData.weight_kg ? parseFloat(formData.weight_kg) : null,
+        dimensions: formData.dimensions || null,
+        available_space_kg: formData.available_space_kg ? parseFloat(formData.available_space_kg) : null,
+      };
+
+      const { error } = await supabase
+        .from('listings')
+        .insert([listingData]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Listing Created",
+        description: "Your listing has been created successfully!",
+      });
+
+      // Reset form
+      setFormData({
+        type: 'package',
+        title: '',
+        description: '',
+        origin: '',
+        destination: '',
+        travel_date: '',
+        weight_kg: '',
+        dimensions: '',
+        available_space_kg: '',
+        price_usd: ''
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Create Listing
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'package' }))}
+                  className={`flex-1 p-3 rounded-lg border ${
+                    formData.type === 'package' 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200'
+                  }`}
+                >
+                  <Package className="h-5 w-5 mx-auto mb-1" />
+                  <div className="text-sm font-medium">Send Package</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'space' }))}
+                  className={`flex-1 p-3 rounded-lg border ${
+                    formData.type === 'space' 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200'
+                  }`}
+                >
+                  <MapPin className="h-5 w-5 mx-auto mb-1" />
+                  <div className="text-sm font-medium">Offer Space</div>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Brief description of your listing"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="origin">Origin</Label>
+                  <Input
+                    id="origin"
+                    value={formData.origin}
+                    onChange={(e) => setFormData(prev => ({ ...prev, origin: e.target.value }))}
+                    placeholder="City, Country"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="destination">Destination</Label>
+                  <Input
+                    id="destination"
+                    value={formData.destination}
+                    onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
+                    placeholder="City, Country"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="travel_date">
+                    <CalendarDays className="h-4 w-4 inline mr-1" />
+                    Travel Date
+                  </Label>
+                  <Input
+                    id="travel_date"
+                    type="date"
+                    value={formData.travel_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, travel_date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price_usd">Price (USD)</Label>
+                  <Input
+                    id="price_usd"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.price_usd}
+                    onChange={(e) => setFormData(prev => ({ ...prev, price_usd: e.target.value }))}
+                    placeholder="Use AI estimation"
+                    required
+                  />
+                </div>
+              </div>
+
+              {formData.type === 'package' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="weight_kg">Weight (kg)</Label>
+                    <Input
+                      id="weight_kg"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={formData.weight_kg}
+                      onChange={(e) => setFormData(prev => ({ ...prev, weight_kg: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dimensions">Dimensions</Label>
+                    <Input
+                      id="dimensions"
+                      value={formData.dimensions}
+                      onChange={(e) => setFormData(prev => ({ ...prev, dimensions: e.target.value }))}
+                      placeholder="L x W x H (cm)"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {formData.type === 'space' && (
+                <div className="space-y-2">
+                  <Label htmlFor="available_space_kg">Available Space (kg)</Label>
+                  <Input
+                    id="available_space_kg"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={formData.available_space_kg}
+                    onChange={(e) => setFormData(prev => ({ ...prev, available_space_kg: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Additional details about your listing"
+                  rows={3}
+                />
+              </div>
+
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? 'Creating...' : 'Create Listing'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <PriceEstimator
+          origin={formData.origin}
+          destination={formData.destination}
+          weight={parseFloat(formData.weight_kg) || 1}
+          onPriceEstimated={handlePriceEstimated}
+        />
+      </div>
+    </div>
+  );
+};
