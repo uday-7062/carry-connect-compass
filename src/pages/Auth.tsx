@@ -6,8 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Luggage, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { TermsModal } from '@/components/legal/TermsModal';
+import { PrivacyModal } from '@/components/legal/PrivacyModal';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,6 +18,7 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'traveler' | 'sender'>('sender');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const { signIn, signUp } = useAuth();
@@ -22,6 +26,16 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isLogin && !acceptedTerms) {
+      toast({
+        title: "Terms Required",
+        description: "Please accept the Terms & Conditions and Privacy Policy to continue.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -145,8 +159,24 @@ export default function Auth() {
                 </RadioGroup>
               </div>
             )}
+
+            {!isLogin && (
+              <div className="space-y-3">
+                <div className="flex items-start space-x-2">
+                  <Checkbox 
+                    id="terms" 
+                    checked={acceptedTerms}
+                    onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+                    I agree to the <TermsModal triggerText="Terms & Conditions" /> and <PrivacyModal triggerText="Privacy Policy" />
+                  </Label>
+                </div>
+              </div>
+            )}
             
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || (!isLogin && !acceptedTerms)}>
               {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </Button>
           </form>
@@ -160,6 +190,13 @@ export default function Auth() {
               {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </button>
           </div>
+
+          {isLogin && (
+            <div className="mt-4 pt-4 border-t text-center space-x-4">
+              <TermsModal />
+              <PrivacyModal />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

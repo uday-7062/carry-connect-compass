@@ -1,8 +1,9 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Luggage, Globe, Shield, Users, ArrowRight, Star } from "lucide-react";
 import { Link } from "react-router-dom";
+import { TermsModal } from "@/components/legal/TermsModal";
+import { PrivacyModal } from "@/components/legal/PrivacyModal";
 
 export default function Index() {
   const features = [
@@ -214,6 +215,85 @@ export default function Index() {
           </Link>
         </div>
       </div>
+
+      {/* Footer with Legal Links */}
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-4 gap-8">
+            <div className="col-span-2">
+              <div className="flex items-center mb-4">
+                <Luggage className="h-8 w-8 mr-3" />
+                <h3 className="text-xl font-bold">CarryConnect</h3>
+              </div>
+              <p className="text-gray-400 mb-4">
+                Connecting travelers with unused baggage space to people needing parcel delivery — locally or globally.
+              </p>
+              <div className="flex space-x-4">
+                <TermsModal 
+                  triggerText="Terms & Conditions"
+                  trigger={
+                    <button className="text-gray-400 hover:text-white text-sm">
+                      Terms & Conditions
+                    </button>
+                  }
+                />
+                <PrivacyModal 
+                  triggerText="Privacy Policy"
+                  trigger={
+                    <button className="text-gray-400 hover:text-white text-sm">
+                      Privacy Policy
+                    </button>
+                  }
+                />
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">For Travelers</h4>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li>Earn Extra Income</li>
+                <li>Help Global Community</li>
+                <li>Safe & Secure</li>
+                <li>Verified Users Only</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">For Senders</h4>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li>Fast Delivery</li>
+                <li>Affordable Rates</li>
+                <li>Global Coverage</li>
+                <li>Track Your Items</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center">
+            <p className="text-gray-400 text-sm">
+              © 2025 CarryConnect. All rights reserved. |{" "}
+              <TermsModal 
+                trigger={
+                  <button className="text-gray-400 hover:text-white underline">
+                    Terms
+                  </button>
+                }
+              />{" "}
+              |{" "}
+              <PrivacyModal 
+                trigger={
+                  <button className="text-gray-400 hover:text-white underline">
+                    Privacy
+                  </button>
+                }
+              />
+            </p>
+            <p className="text-gray-500 text-xs mt-2">
+              Legal Disclaimer: CarryConnect is a technology platform only. Users are responsible for compliance with all local and international laws.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
