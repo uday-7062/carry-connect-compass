@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -145,7 +144,6 @@ export const ChatWindow = ({ matchId, otherUser, onClose }: ChatWindowProps) => 
           match_id: matchId,
           sender_id: profile.id,
           content: newMessage.trim(),
-          message_type: 'text'
         });
 
       if (error) throw error;
