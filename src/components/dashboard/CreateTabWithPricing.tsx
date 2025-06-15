@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { CalendarDays, MapPin, Package, FileText } from 'lucide-react';
 
 export const CreateTabWithPricing = () => {
   const [formData, setFormData] = useState({
-    type: 'package' as 'package' | 'space',
+    type: 'delivery_request' as 'delivery_request' | 'space_available',
     title: '',
     description: '',
     origin: '',
@@ -54,7 +53,7 @@ export const CreateTabWithPricing = () => {
 
       const { error } = await supabase
         .from('listings')
-        .insert([listingData]);
+        .insert(listingData);
 
       if (error) throw error;
 
@@ -65,7 +64,7 @@ export const CreateTabWithPricing = () => {
 
       // Reset form
       setFormData({
-        type: 'package',
+        type: 'delivery_request',
         title: '',
         description: '',
         origin: '',
@@ -102,9 +101,9 @@ export const CreateTabWithPricing = () => {
               <div className="flex gap-4">
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, type: 'package' }))}
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'delivery_request' }))}
                   className={`flex-1 p-3 rounded-lg border ${
-                    formData.type === 'package' 
+                    formData.type === 'delivery_request' 
                       ? 'border-blue-500 bg-blue-50' 
                       : 'border-gray-200'
                   }`}
@@ -114,9 +113,9 @@ export const CreateTabWithPricing = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, type: 'space' }))}
+                  onClick={() => setFormData(prev => ({ ...prev, type: 'space_available' }))}
                   className={`flex-1 p-3 rounded-lg border ${
-                    formData.type === 'space' 
+                    formData.type === 'space_available' 
                       ? 'border-blue-500 bg-blue-50' 
                       : 'border-gray-200'
                   }`}
@@ -189,7 +188,7 @@ export const CreateTabWithPricing = () => {
                 </div>
               </div>
 
-              {formData.type === 'package' && (
+              {formData.type === 'delivery_request' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="weight_kg">Weight (kg)</Label>
@@ -214,7 +213,7 @@ export const CreateTabWithPricing = () => {
                 </div>
               )}
 
-              {formData.type === 'space' && (
+              {formData.type === 'space_available' && (
                 <div className="space-y-2">
                   <Label htmlFor="available_space_kg">Available Space (kg)</Label>
                   <Input
