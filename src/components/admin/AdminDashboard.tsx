@@ -73,13 +73,24 @@ export const AdminDashboard = () => {
 
       if (reportsError) throw reportsError;
 
-      setVerificationRequests(verifications || []);
-      setReports(reportsData || []);
+      // Type-cast the data to ensure proper typing
+      const typedVerifications = (verifications || []).map(v => ({
+        ...v,
+        status: v.status as 'pending' | 'approved' | 'rejected'
+      })) as VerificationRequest[];
+
+      const typedReports = (reportsData || []).map(r => ({
+        ...r,
+        status: r.status as 'pending' | 'resolved' | 'dismissed'
+      })) as Report[];
+
+      setVerificationRequests(typedVerifications);
+      setReports(typedReports);
       
       setStats({
         totalUsers: totalUsers || 0,
-        pendingReports: reportsData?.filter(r => r.status === 'pending').length || 0,
-        pendingVerifications: verifications?.filter(v => v.status === 'pending').length || 0,
+        pendingReports: typedReports.filter(r => r.status === 'pending').length,
+        pendingVerifications: typedVerifications.filter(v => v.status === 'pending').length,
         resolvedToday: 0 // You can calculate this based on updated_at if needed
       });
     } catch (error) {
