@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Send, Paperclip, Image, FileText } from 'lucide-react';
+import { Send, Paperclip, FileText, Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PaymentButton } from '@/components/PaymentButton';
 import { RatingDialog } from '@/components/RatingDialog';
 import { TrustBadges } from '@/components/TrustBadges';
+import { ChatMessageImage } from './ChatMessageImage';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -22,9 +22,9 @@ interface Message {
   sender_id: string;
   created_at: string;
   is_read: boolean;
-  message_type?: 'text' | 'image' | 'file';
-  file_url?: string;
-  file_name?: string;
+  message_type: 'text' | 'image' | 'file';
+  file_url: string | null;
+  file_name: string | null;
 }
 
 interface ChatWindowProps {
@@ -52,7 +52,9 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
   const [hasRated, setHasRated] = useState(false);
   const [checkingRatingStatus, setCheckingRatingStatus] = useState(true);
   const [otherUserProfile, setOtherUserProfile] = useState<Profile | null>(null);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -197,8 +199,9 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !profile) return;
+  const sendMessage = async (content: string, messageType: 'text' | 'image' | 'file' = 'text', fileUrl?: string, fileName?: string) => {
+    if (!content.trim() && !fileUrl) return;
+    if (!profile) return;
 
     setLoading(true);
     try {
@@ -207,7 +210,10 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
         .insert({
           match_id: matchId,
           sender_id: profile.id,
-          content: newMessage.trim(),
+          content: content.trim(),
+          message_type: messageType,
+          file_url: fileUrl,
+          file_name: fileName,
         });
 
       if (error) throw error;
@@ -224,10 +230,85 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
     }
   };
 
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      sendMessage(newMessage);
+    }
+  };
+  
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile) return;
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast({
+        title: "File too large",
+        description: "Please upload files smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const uniqueFileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${matchId}/${uniqueFileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat_attachments')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+      await sendMessage(file.name, messageType, filePath, file.name);
+
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: 'Upload failed',
+        description: 'Could not upload the file. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      if(fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
+    }
+  };
+
+  const downloadFile = async (fileUrl: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('chat_attachments')
+        .download(fileUrl);
+      if (error) throw error;
+
+      const blob = new Blob([data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      toast({
+        title: "Download failed",
+        description: "Could not download the file.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -266,6 +347,26 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((message) => {
             const isOwn = message.sender_id === profile?.id;
+            
+            const renderMessageContent = () => {
+              if (message.message_type === 'image' && message.file_url) {
+                return <ChatMessageImage fileUrl={message.file_url} />;
+              }
+              if (message.message_type === 'file' && message.file_url && message.file_name) {
+                return (
+                  <div 
+                    className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-black hover:bg-opacity-10 rounded-md" 
+                    onClick={() => downloadFile(message.file_url!, message.file_name!)}
+                  >
+                    <FileText className="h-6 w-6 flex-shrink-0" />
+                    <span className="underline truncate" title={message.file_name}>{message.file_name}</span>
+                    <Download className="h-4 w-4 flex-shrink-0" />
+                  </div>
+                );
+              }
+              return <p className="text-sm break-words">{message.content}</p>;
+            };
+
             return (
               <div
                 key={message.id}
@@ -278,8 +379,8 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
-                  <div className="flex items-center justify-between mt-1">
+                  {renderMessageContent()}
+                  <div className="flex items-center justify-end mt-1 space-x-2">
                     <span className="text-xs opacity-70">
                       {formatTime(message.created_at)}
                     </span>
@@ -319,9 +420,10 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
         )}
         
         <div className="border-t p-4">
-          <div className="flex space-x-2">
-            <Button variant="ghost" size="sm">
-              <Paperclip className="h-4 w-4" />
+          <div className="flex space-x-2 items-center">
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/jpeg,image/png,application/pdf,.doc,.docx,.txt" />
+            <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              <Paperclip className="h-5 w-5" />
             </Button>
             <Input
               value={newMessage}
@@ -329,13 +431,14 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
               onKeyPress={handleKeyPress}
               placeholder="Type a message..."
               className="flex-1"
+              disabled={uploading}
             />
             <Button 
-              onClick={sendMessage}
-              disabled={loading || !newMessage.trim()}
-              size="sm"
+              onClick={handleSendMessage}
+              disabled={loading || uploading || !newMessage.trim()}
+              size="icon"
             >
-              <Send className="h-4 w-4" />
+              {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
           </div>
         </div>

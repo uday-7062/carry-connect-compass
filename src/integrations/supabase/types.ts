@@ -197,25 +197,34 @@ export type Database = {
         Row: {
           content: string
           created_at: string | null
+          file_name: string | null
+          file_url: string | null
           id: string
           is_read: boolean | null
           match_id: string | null
+          message_type: string
           sender_id: string | null
         }
         Insert: {
           content: string
           created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
           id?: string
           is_read?: boolean | null
           match_id?: string | null
+          message_type?: string
           sender_id?: string | null
         }
         Update: {
           content?: string
           created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
           id?: string
           is_read?: boolean | null
           match_id?: string | null
+          message_type?: string
           sender_id?: string | null
         }
         Relationships: [
