@@ -16,14 +16,6 @@ interface Report {
   description: string;
   status: 'pending' | 'resolved' | 'dismissed';
   created_at: string;
-  reported_user: {
-    full_name: string;
-    email: string;
-  };
-  reporter: {
-    full_name: string;
-    email: string;
-  };
 }
 
 interface VerificationRequest {
@@ -33,7 +25,7 @@ interface VerificationRequest {
   document_url: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
-  profiles: {
+  profiles?: {
     full_name: string;
     email: string;
   };
@@ -57,59 +49,45 @@ export const AdminDashboard = () => {
 
   const fetchAdminData = async () => {
     try {
-      // For now, we'll create mock data since the tables are empty
-      // In a real app, you'd fetch from the actual tables
-      
-      // Fetch stats from existing tables
+      // Fetch user count
       const { count: totalUsers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
-      // Mock data for reports and verifications since tables are newly created
-      const mockReports: Report[] = [
-        {
-          id: '1',
-          reported_user_id: 'user1',
-          reporter_id: 'user2',
-          reason: 'Inappropriate behavior',
-          description: 'User was rude during message exchange',
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          reported_user: { full_name: 'John Doe', email: 'john@example.com' },
-          reporter: { full_name: 'Jane Smith', email: 'jane@example.com' }
-        }
-      ];
+      // Fetch verification requests with user profiles
+      const { data: verifications, error: verificationError } = await supabase
+        .from('verification_requests')
+        .select(`
+          *,
+          profiles!inner(full_name, email)
+        `)
+        .order('created_at', { ascending: false });
 
-      const mockVerifications: VerificationRequest[] = [
-        {
-          id: '1',
-          user_id: 'user1',
-          document_type: 'passport',
-          document_url: '/placeholder.svg',
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          profiles: { full_name: 'John Doe', email: 'john@example.com' }
-        }
-      ];
+      if (verificationError) throw verificationError;
 
-      setReports(mockReports);
-      setVerificationRequests(mockVerifications);
+      // Fetch user reports
+      const { data: reportsData, error: reportsError } = await supabase
+        .from('user_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (reportsError) throw reportsError;
+
+      setVerificationRequests(verifications || []);
+      setReports(reportsData || []);
+      
       setStats({
         totalUsers: totalUsers || 0,
-        pendingReports: mockReports.filter(r => r.status === 'pending').length,
-        pendingVerifications: mockVerifications.filter(v => v.status === 'pending').length,
-        resolvedToday: 0
+        pendingReports: reportsData?.filter(r => r.status === 'pending').length || 0,
+        pendingVerifications: verifications?.filter(v => v.status === 'pending').length || 0,
+        resolvedToday: 0 // You can calculate this based on updated_at if needed
       });
     } catch (error) {
       console.error('Error fetching admin data:', error);
-      // Set empty arrays if there's an error
-      setReports([]);
-      setVerificationRequests([]);
-      setStats({
-        totalUsers: 0,
-        pendingReports: 0,
-        pendingVerifications: 0,
-        resolvedToday: 0
+      toast({
+        title: "Error",
+        description: "Failed to load admin data",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
@@ -118,10 +96,19 @@ export const AdminDashboard = () => {
 
   const handleReportAction = async (reportId: string, action: 'resolve' | 'dismiss') => {
     try {
-      // Update the local state for now - in real app this would update the database
+      const newStatus = action === 'resolve' ? 'resolved' : 'dismissed';
+      
+      const { error } = await supabase
+        .from('user_reports')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', reportId);
+
+      if (error) throw error;
+
+      // Update local state
       setReports(prev => prev.map(report => 
         report.id === reportId 
-          ? { ...report, status: action === 'resolve' ? 'resolved' : 'dismissed' as const }
+          ? { ...report, status: newStatus as 'resolved' | 'dismissed' }
           : report
       ));
 
@@ -130,6 +117,7 @@ export const AdminDashboard = () => {
         description: `Report has been ${action}d successfully`,
       });
     } catch (error) {
+      console.error('Error updating report:', error);
       toast({
         title: "Error",
         description: "Failed to update report",
@@ -140,10 +128,33 @@ export const AdminDashboard = () => {
 
   const handleVerificationAction = async (requestId: string, action: 'approve' | 'reject') => {
     try {
-      // Update the local state for now - in real app this would update the database
+      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      
+      // Update verification request
+      const { data: verificationData, error: verificationError } = await supabase
+        .from('verification_requests')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', requestId)
+        .select('user_id')
+        .single();
+
+      if (verificationError) throw verificationError;
+
+      // Update user's id_verified status
+      if (verificationData) {
+        const userStatus = action === 'approve' ? 'verified' : 'rejected';
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ id_verified: userStatus })
+          .eq('id', verificationData.user_id);
+
+        if (profileError) throw profileError;
+      }
+
+      // Update local state
       setVerificationRequests(prev => prev.map(request => 
         request.id === requestId 
-          ? { ...request, status: action === 'approve' ? 'approved' : 'rejected' as const }
+          ? { ...request, status: newStatus as 'approved' | 'rejected' }
           : request
       ));
 
@@ -152,12 +163,20 @@ export const AdminDashboard = () => {
         description: `Verification has been ${action}d successfully`,
       });
     } catch (error) {
+      console.error('Error updating verification:', error);
       toast({
         title: "Error",
         description: "Failed to update verification",
         variant: "destructive"
       });
     }
+  };
+
+  const getDocumentUrl = (documentPath: string) => {
+    const { data } = supabase.storage
+      .from('verification-documents')
+      .getPublicUrl(documentPath);
+    return data.publicUrl;
   };
 
   if (loading) {
@@ -209,80 +228,11 @@ export const AdminDashboard = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="reports" className="space-y-4">
+      <Tabs defaultValue="verifications" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="reports">User Reports</TabsTrigger>
           <TabsTrigger value="verifications">ID Verifications</TabsTrigger>
+          <TabsTrigger value="reports">User Reports</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Reports</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {reports.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No reports to review</p>
-              ) : (
-                <div className="space-y-4">
-                  {reports.map((report) => (
-                    <Card key={report.id} className="border-l-4 border-l-red-500">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Badge variant={
-                                report.status === 'pending' ? 'destructive' :
-                                report.status === 'resolved' ? 'default' : 'secondary'
-                              }>
-                                {report.status}
-                              </Badge>
-                              <span className="text-sm text-gray-600">
-                                {new Date(report.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-medium">
-                                Reported User: {report.reported_user?.full_name}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                Reporter: {report.reporter?.full_name}
-                              </p>
-                              <p className="text-sm font-medium text-red-600">
-                                Reason: {report.reason}
-                              </p>
-                              <p className="text-sm">{report.description}</p>
-                            </div>
-                          </div>
-                          
-                          {report.status === 'pending' && (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleReportAction(report.id, 'dismiss')}
-                              >
-                                <X className="h-4 w-4" />
-                                Dismiss
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleReportAction(report.id, 'resolve')}
-                              >
-                                <Check className="h-4 w-4" />
-                                Resolve
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="verifications" className="space-y-4">
           <Card>
@@ -312,10 +262,10 @@ export const AdminDashboard = () => {
                             </div>
                             <div>
                               <p className="font-medium">
-                                User: {request.profiles?.full_name}
+                                User: {request.profiles?.full_name || 'Unknown'}
                               </p>
                               <p className="text-sm text-gray-600">
-                                Email: {request.profiles?.email}
+                                Email: {request.profiles?.email || 'Unknown'}
                               </p>
                               <p className="text-sm font-medium">
                                 Document Type: {request.document_type}
@@ -323,7 +273,7 @@ export const AdminDashboard = () => {
                               <Button
                                 variant="link"
                                 size="sm"
-                                onClick={() => window.open(request.document_url, '_blank')}
+                                onClick={() => window.open(getDocumentUrl(request.document_url), '_blank')}
                               >
                                 View Document
                               </Button>
@@ -346,6 +296,69 @@ export const AdminDashboard = () => {
                               >
                                 <Check className="h-4 w-4" />
                                 Approve
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Reports</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {reports.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No reports to review</p>
+              ) : (
+                <div className="space-y-4">
+                  {reports.map((report) => (
+                    <Card key={report.id} className="border-l-4 border-l-red-500">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={
+                                report.status === 'pending' ? 'destructive' :
+                                report.status === 'resolved' ? 'default' : 'secondary'
+                              }>
+                                {report.status}
+                              </Badge>
+                              <span className="text-sm text-gray-600">
+                                {new Date(report.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-red-600">
+                                Reason: {report.reason}
+                              </p>
+                              <p className="text-sm">{report.description}</p>
+                            </div>
+                          </div>
+                          
+                          {report.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleReportAction(report.id, 'dismiss')}
+                              >
+                                <X className="h-4 w-4" />
+                                Dismiss
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleReportAction(report.id, 'resolve')}
+                              >
+                                <Check className="h-4 w-4" />
+                                Resolve
                               </Button>
                             </div>
                           )}

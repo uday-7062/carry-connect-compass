@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -83,13 +84,29 @@ export const ProfileTab = () => {
 
     setUploadingDoc(true);
     try {
+      // Create unique file path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile.id}/${Date.now()}.${fileExt}`;
+      
+      // Upload file to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('verification-documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL for the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('verification-documents')
+        .getPublicUrl(fileName);
+
       // Create verification request in database
       const { error: dbError } = await supabase
         .from('verification_requests')
         .insert({
           user_id: profile.id,
           document_type: getDocumentType(file.type),
-          document_url: `pending_upload_${Date.now()}`, // Temporary URL
+          document_url: uploadData.path,
           status: 'pending'
         });
 
