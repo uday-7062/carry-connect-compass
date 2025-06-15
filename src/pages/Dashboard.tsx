@@ -83,28 +83,4 @@ export default function Dashboard() {
       )}
     </div>
   );
-
-  function getTabTitle() {
-    switch (activeTab) {
-      case 'home': return 'CarryConnect';
-      case 'search': return 'Find Matches';
-      case 'create': return 'Create Listing';
-      case 'messages': return 'Messages';
-      case 'payments': return 'Payments';
-      case 'profile': return 'Profile';
-      default: return 'CarryConnect';
-    }
-  }
-
-  function renderContent() {
-    switch (activeTab) {
-      case 'home': return <HomeTab />;
-      case 'search': return <SearchTab />;
-      case 'create': return <CreateTabWithPricing />;
-      case 'messages': return <MessagesTab />;
-      case 'payments': return <PaymentsTab />;
-      case 'profile': return <ProfileTab />;
-      default: return <HomeTab />;
-    }
-  }
 }
