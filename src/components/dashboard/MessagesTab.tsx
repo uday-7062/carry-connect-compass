@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,8 @@ interface Match {
   status: string;
   created_at: string;
   listings: {
+    id: string;
+    price_usd: number;
     title: string;
     origin: string;
     destination: string;
@@ -60,6 +61,9 @@ export const MessagesTab = () => {
             matchId={selectedMatch.id}
             otherUser={otherUser}
             onClose={() => setSelectedMatch(null)}
+            listing={selectedMatch.listings}
+            senderId={selectedMatch.sender.id}
+            matchStatus={selectedMatch.status}
           />
         </div>
       </div>

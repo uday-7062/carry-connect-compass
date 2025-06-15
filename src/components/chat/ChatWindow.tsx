@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Send, Paperclip, Image, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { PaymentButton } from '@/components/PaymentButton';
 
 interface Message {
   id: string;
@@ -28,9 +29,15 @@ interface ChatWindowProps {
     avatar_url?: string;
   };
   onClose: () => void;
+  listing: {
+    id: string;
+    price_usd: number;
+  };
+  senderId: string;
+  matchStatus: string;
 }
 
-export const ChatWindow = ({ matchId, otherUser, onClose }: ChatWindowProps) => {
+export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, matchStatus }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,6 +45,9 @@ export const ChatWindow = ({ matchId, otherUser, onClose }: ChatWindowProps) => 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
+
+  const isSender = profile?.id === senderId;
+  const showPaymentButton = isSender && matchStatus === 'pending';
 
   useEffect(() => {
     fetchMessages();
@@ -226,6 +236,16 @@ export const ChatWindow = ({ matchId, otherUser, onClose }: ChatWindowProps) => 
           })}
           <div ref={messagesEndRef} />
         </div>
+        
+        {showPaymentButton && (
+          <div className="border-t p-4 bg-gray-50">
+            <PaymentButton
+              listingId={listing.id}
+              matchId={matchId}
+              amount={listing.price_usd}
+            />
+          </div>
+        )}
         
         <div className="border-t p-4">
           <div className="flex space-x-2">

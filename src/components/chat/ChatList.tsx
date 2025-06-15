@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,8 @@ interface Match {
   status: string;
   created_at: string;
   listings: {
+    id: string;
+    price_usd: number;
     title: string;
     origin: string;
     destination: string;
@@ -77,6 +78,8 @@ export const ChatList = ({ onSelectMatch }: ChatListProps) => {
         .select(`
           *,
           listings (
+            id,
+            price_usd,
             title,
             origin,
             destination
