@@ -59,15 +59,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const checkAdminStatus = async (userId: string) => {
+      console.log('Checking admin status for user:', userId);
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('admin_users')
           .select('id')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle(); // Use maybeSingle to avoid error on no result
         
-        setIsAdmin(!error);
+        console.log('Admin check result:', { data, error });
+        if (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+          return;
+        }
+        
+        setIsAdmin(!!data); // Set isAdmin to true if data is not null
       } catch (error) {
+        console.error('Unexpected error in checkAdminStatus:', error);
         setIsAdmin(false);
       }
     };
