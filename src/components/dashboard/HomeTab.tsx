@@ -1,74 +1,56 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { TrustBadges } from '@/components/TrustBadges';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PaymentButton } from '@/components/PaymentButton';
-import { MapPin, Calendar, Weight, DollarSign, Star } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-type Listing = {
-  id: string;
-  title: string;
-  description: string;
-  origin: string;
-  destination: string;
-  travel_date: string;
-  price_usd: number;
-  weight_kg?: number;
-  available_space_kg?: number;
-  type: 'space_available' | 'delivery_request';
-  user_id?: string;
-  profiles?: {
-    full_name: string;
-    rating: number;
-  };
-};
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Plus, MapPin, Calendar, Package, Star, Bell, TrendingUp } from 'lucide-react';
 
 export const HomeTab = () => {
-  const [listings, setListings] = useState<Listing[]>([]);
+  const [recentListings, setRecentListings] = useState<any[]>([]);
+  const [recentMatches, setRecentMatches] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalEarnings: 0,
+    completedDeliveries: 0,
+    activeListings: 0,
+    trustScore: 0
+  });
   const [loading, setLoading] = useState(true);
-  const [matches, setMatches] = useState<any[]>([]);
   const { profile } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
-    fetchListings();
-    fetchMatches();
-  }, []);
+    if (profile) {
+      fetchDashboardData();
+    }
+  }, [profile]);
 
-  const fetchListings = async () => {
+  const fetchDashboardData = async () => {
+    if (!profile) return;
+
     try {
-      const { data, error } = await supabase
+      // Fetch recent listings
+      const { data: listingsData } = await supabase
         .from('listings')
         .select(`
           *,
-          profiles!listings_user_id_fkey (
+          profiles (
             full_name,
-            rating
+            rating,
+            total_ratings,
+            email_verified,
+            id_verified
           )
         `)
+        .neq('user_id', profile.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(3);
 
-      if (error) throw error;
-      setListings(data || []);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load listings",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMatches = async () => {
-    try {
-      const { data, error } = await supabase
+      // Fetch recent matches
+      const { data: matchesData } = await supabase
         .from('matches')
         .select(`
           *,
@@ -78,45 +60,63 @@ export const HomeTab = () => {
             destination,
             price_usd
           ),
-          payments (
-            id,
-            status
+          traveler:profiles!matches_traveler_id_fkey (
+            full_name,
+            avatar_url
+          ),
+          sender:profiles!matches_sender_id_fkey (
+            full_name,
+            avatar_url
           )
         `)
-        .or(`sender_id.eq.${profile?.id},traveler_id.eq.${profile?.id}`)
-        .eq('status', 'accepted');
+        .or(`traveler_id.eq.${profile.id},sender_id.eq.${profile.id}`)
+        .order('created_at', { ascending: false })
+        .limit(3);
 
-      if (error) throw error;
-      setMatches(data || []);
+      // Calculate stats
+      const { data: userListings } = await supabase
+        .from('listings')
+        .select('id')
+        .eq('user_id', profile.id)
+        .eq('is_active', true);
+
+      const { data: completedMatches } = await supabase
+        .from('matches')
+        .select('id')
+        .or(`traveler_id.eq.${profile.id},sender_id.eq.${profile.id}`)
+        .eq('status', 'completed');
+
+      const { data: earnings } = await supabase
+        .from('payments')
+        .select('traveler_amount_usd')
+        .eq('traveler_id', profile.id)
+        .eq('status', 'released');
+
+      const totalEarnings = earnings?.reduce((sum, payment) => sum + Number(payment.traveler_amount_usd), 0) || 0;
+      const trustScore = calculateTrustScore(profile);
+
+      setRecentListings(listingsData || []);
+      setRecentMatches(matchesData || []);
+      setStats({
+        totalEarnings,
+        completedDeliveries: completedMatches?.length || 0,
+        activeListings: userListings?.length || 0,
+        trustScore
+      });
     } catch (error) {
-      console.error('Error fetching matches:', error);
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const createMatch = async (listingId: string, travelerId: string, senderId: string) => {
-    try {
-      const { error } = await supabase
-        .from('matches')
-        .insert({
-          listing_id: listingId,
-          traveler_id: travelerId,
-          sender_id: senderId,
-          status: 'pending'
-        });
-
-      if (error) throw error;
-      
-      toast({
-        title: "Match Created",
-        description: "Your match request has been sent!",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create match",
-        variant: "destructive"
-      });
-    }
+  const calculateTrustScore = (profile: any) => {
+    let score = 0;
+    if (profile.email_verified) score += 25;
+    if (profile.id_verified === 'verified') score += 35;
+    if (profile.rating && profile.rating >= 4) score += 25;
+    if (profile.total_ratings && profile.total_ratings >= 5) score += 15;
+    return Math.min(score, 100);
   };
 
   if (loading) {
@@ -137,157 +137,160 @@ export const HomeTab = () => {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
-        <h2 className="text-xl font-bold mb-2">
-          Welcome back, {profile?.full_name?.split(' ')[0]}!
-        </h2>
-        <p className="text-blue-100">
-          {profile?.role === 'traveler' 
-            ? 'Share your luggage space and earn money' 
-            : 'Find travelers to deliver your items'
-          }
-        </p>
+    <div className="p-4 space-y-6">
+      {/* Welcome Section */}
+      <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold mb-1">
+                Welcome back, {profile?.full_name}!
+              </h2>
+              <p className="opacity-90">
+                Ready to {profile?.role === 'traveler' ? 'help deliver packages' : 'send your items'}?
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold">{stats.trustScore}%</div>
+              <div className="text-sm opacity-90">Trust Score</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trust Badges */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">Your Trust Profile</h3>
+            <Button variant="outline" size="sm">
+              Improve Score
+            </Button>
+          </div>
+          <TrustBadges profile={profile} size="md" />
+        </CardContent>
+      </Card>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <TrendingUp className="h-8 w-8 mx-auto mb-2 text-green-600" />
+            <div className="text-xl font-bold text-green-600">${stats.totalEarnings}</div>
+            <div className="text-xs text-gray-600">Total Earned</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Package className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+            <div className="text-xl font-bold">{stats.completedDeliveries}</div>
+            <div className="text-xs text-gray-600">Completed</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Plus className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+            <div className="text-xl font-bold">{stats.activeListings}</div>
+            <div className="text-xs text-gray-600">Active Listings</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Star className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
+            <div className="text-xl font-bold">{profile?.rating?.toFixed(1) || '0.0'}</div>
+            <div className="text-xs text-gray-600">Your Rating</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Active Matches with Payment Options */}
-      {matches.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Active Matches - Ready for Payment</h3>
-          {matches.map((match) => (
-            <Card key={match.id} className="border-2 border-green-200">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-base">{match.listings.title}</CardTitle>
-                  <Badge className="bg-green-600">Matched</Badge>
-                </div>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <span>{match.listings.origin} → {match.listings.destination}</span>
-                  </div>
-                  
-                  <div className="flex items-center text-green-600 font-semibold">
-                    <DollarSign className="h-4 w-4 mr-1" />
-                    ${match.listings.price_usd}
-                  </div>
-
-                  {/* Show payment button for sender, status for traveler */}
-                  {profile?.id === match.sender_id && !match.payments?.length && (
-                    <PaymentButton 
-                      listingId={match.listing_id}
-                      matchId={match.id}
-                      amount={match.listings.price_usd}
-                    />
-                  )}
-                  
-                  {match.payments?.length > 0 && (
-                    <div className="text-center text-sm text-blue-600 font-medium">
-                      💳 Payment in escrow - Check Payments tab for delivery confirmation
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Recent Listings</h3>
-        <Button variant="outline" size="sm" onClick={fetchListings}>
-          Refresh
-        </Button>
-      </div>
-
+      {/* Recent Activity */}
       <div className="space-y-4">
-        {listings.map((listing) => (
-          <Card key={listing.id} className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-base line-clamp-2">
-                  {listing.title}
-                </CardTitle>
-                <Badge variant={listing.type === 'space_available' ? 'default' : 'secondary'}>
-                  {listing.type === 'space_available' ? 'Space' : 'Request'}
-                </Badge>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  <span className="truncate">{listing.origin} → {listing.destination}</span>
-                </div>
-                
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center text-gray-600">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    {new Date(listing.travel_date).toLocaleDateString()}
-                  </div>
-                  
-                  {(listing.weight_kg || listing.available_space_kg) && (
-                    <div className="flex items-center text-gray-600">
-                      <Weight className="h-4 w-4 mr-1" />
-                      {listing.weight_kg || listing.available_space_kg}kg
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <DollarSign className="h-4 w-4 mr-1 text-green-600" />
-                    <span className="font-semibold text-green-600">
-                      ${Math.max(listing.price_usd, 5)} {listing.price_usd < 5 && <span className="text-xs text-gray-500">(min $5)</span>}
-                    </span>
-                  </div>
-                  
-                  {listing.profiles && (
-                    <div className="flex items-center text-sm">
-                      <Star className="h-4 w-4 mr-1 text-yellow-500 fill-current" />
-                      <span>{listing.profiles.rating.toFixed(1)}</span>
-                    </div>
-                  )}
-                </div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Recent Activity</h3>
+          <Button variant="outline" size="sm">
+            <Bell className="h-4 w-4 mr-1" />
+            View All
+          </Button>
+        </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-sm text-gray-500">
-                    by {listing.profiles?.full_name}
-                  </span>
-                  
-                  <Button 
-                    size="sm"
-                    onClick={() => {
-                      if (profile?.role === 'traveler' && listing.type === 'delivery_request' && listing.user_id) {
-                        createMatch(listing.id, profile.id, listing.user_id);
-                      } else if (profile?.role === 'sender' && listing.type === 'space_available' && listing.user_id) {
-                        createMatch(listing.id, listing.user_id, profile.id);
-                      }
-                    }}
-                    disabled={
-                      (profile?.role === 'traveler' && listing.type === 'space_available') ||
-                      (profile?.role === 'sender' && listing.type === 'delivery_request')
-                    }
-                  >
-                    {profile?.role === 'traveler' ? 'Offer Space' : 'Request Delivery'}
-                  </Button>
-                </div>
-              </div>
+        {/* Recent Matches */}
+        {recentMatches.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Recent Matches</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentMatches.map((match) => {
+                const otherUser = match.traveler_id === profile?.id ? match.sender : match.traveler;
+                return (
+                  <div key={match.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-xs">
+                          {otherUser?.full_name?.charAt(0) || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{match.listings?.title}</p>
+                        <p className="text-xs text-gray-600">
+                          {match.listings?.origin} → {match.listings?.destination}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant={match.status === 'pending' ? 'secondary' : 'default'}>
+                      {match.status}
+                    </Badge>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
-        ))}
-      </div>
+        )}
 
-      {listings.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          <p>No listings available yet.</p>
-          <p className="text-sm mt-1">Be the first to create one!</p>
-        </div>
-      )}
+        {/* Recent Listings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Available Opportunities</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentListings.length === 0 ? (
+              <p className="text-center text-gray-500 py-4">
+                No recent listings available
+              </p>
+            ) : (
+              recentListings.map((listing) => (
+                <div key={listing.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="font-medium text-sm">{listing.title}</h4>
+                      <div className="flex items-center text-xs text-gray-600 mt-1">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {listing.origin} → {listing.destination}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-green-600">${listing.price_usd}</div>
+                      <TrustBadges profile={listing.profiles} size="sm" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-xs text-gray-600">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {new Date(listing.travel_date).toLocaleDateString()}
+                    </div>
+                    <Button size="sm" variant="outline">
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
