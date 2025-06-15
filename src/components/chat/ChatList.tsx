@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ChatWindow } from './ChatWindow';
 import { MessageSquare, Clock } from 'lucide-react';
 
 interface Match {
@@ -34,9 +33,12 @@ interface Match {
   };
 }
 
-export const ChatList = () => {
+interface ChatListProps {
+  onSelectMatch?: (match: Match) => void;
+}
+
+export const ChatList = ({ onSelectMatch }: ChatListProps) => {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const { profile } = useAuth();
 
@@ -156,31 +158,10 @@ export const ChatList = () => {
     );
   }
 
-  if (selectedMatch) {
-    // Add null checks before accessing properties
-    if (!selectedMatch.traveler || !selectedMatch.sender) {
-      console.error('Invalid match data - missing traveler or sender');
-      setSelectedMatch(null);
-      return null;
-    }
-
-    const otherUser = selectedMatch.traveler.id === profile?.id 
-      ? selectedMatch.sender 
-      : selectedMatch.traveler;
-
-    return (
-      <div className="p-4">
-        <ChatWindow
-          matchId={selectedMatch.id}
-          otherUser={otherUser}
-          onClose={() => setSelectedMatch(null)}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 space-y-4">
+      <h2 className="text-xl font-bold">Messages</h2>
+      
       {matches.length === 0 ? (
         <div className="text-center py-12">
           <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -204,7 +185,7 @@ export const ChatList = () => {
               <Card 
                 key={match.id} 
                 className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setSelectedMatch(match)}
+                onClick={() => onSelectMatch?.(match)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
