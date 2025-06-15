@@ -152,7 +152,7 @@ export const ChatList = () => {
   }
 
   if (selectedMatch) {
-    const otherUser = selectedMatch.traveler_id === profile?.id 
+    const otherUser = selectedMatch.traveler.id === profile?.id 
       ? selectedMatch.sender 
       : selectedMatch.traveler;
 
@@ -180,7 +180,7 @@ export const ChatList = () => {
       ) : (
         <div className="space-y-3">
           {matches.map((match) => {
-            const otherUser = match.traveler_id === profile?.id ? match.sender : match.traveler;
+            const otherUser = match.traveler.id === profile?.id ? match.sender : match.traveler;
             
             return (
               <Card 
