@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowRight, Star } from 'lucide-react';
+import { Loader2, ArrowRight, Star, Inbox } from 'lucide-react';
 
 interface Listing {
   id: string;
@@ -104,10 +104,15 @@ export const HomeTab = () => {
       </div>
       
       {listings.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <p>No listings found right now.</p>
-          <p className="text-sm mt-1">Check back later or create your own listing!</p>
-        </div>
+        <Card className="mt-8 text-center p-8 border-2 border-dashed border-gray-200 bg-gray-50/50 shadow-none">
+          <div className="flex justify-center items-center mx-auto bg-gray-100 rounded-full h-20 w-20 mb-6">
+            <Inbox className="h-10 w-10 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800">Nothing to see here... yet!</h3>
+          <p className="text-gray-500 mt-2 text-sm">
+            New listings will appear here as soon as they are available.
+          </p>
+        </Card>
       ) : (
         <div className="space-y-4">
           {listings.map((listing) => (
