@@ -11,9 +11,11 @@ import { Separator } from '@/components/ui/separator';
 import { Star, LogOut, User, Mail, Phone, MapPin, Shield, Camera, Upload, FileText, Luggage, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 export const ProfileTab = () => {
-  const { profile, signOut, updateProfile } = useAuth();
+  const { profile, signOut, updateProfile, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -352,7 +354,17 @@ export const ProfileTab = () => {
 
       {/* Account Actions */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-2">
+          {isAdmin && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate('/admin')}
+            >
+              <Shield className="h-4 w-4 mr-2" />
+              Admin Dashboard
+            </Button>
+          )}
           <Button 
             variant="destructive" 
             onClick={signOut}
@@ -366,3 +378,4 @@ export const ProfileTab = () => {
     </div>
   );
 };
+

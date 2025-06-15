@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +10,7 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string, role: 'traveler' | 'sender') => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -55,6 +56,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const checkAdminStatus = async (userId: string) => {
+      try {
+        const { error } = await supabase
+          .from('admin_users')
+          .select('id')
+          .eq('user_id', userId)
+          .single();
+        
+        setIsAdmin(!error);
+      } catch (error) {
+        setIsAdmin(false);
+      }
+    };
+
+    if (profile?.id) {
+      checkAdminStatus(profile.id);
+    } else {
+      setIsAdmin(false);
+    }
+  }, [profile]);
 
   const fetchProfile = async (userId: string) => {
     console.log('Fetching profile for user:', userId);
@@ -140,6 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       profile,
       session,
       loading,
+      isAdmin,
       signIn,
       signUp,
       signOut,
