@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PaymentButton } from '@/components/PaymentButton';
 import { MapPin, Calendar, Weight, DollarSign, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,11 +29,13 @@ type Listing = {
 export const HomeTab = () => {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [matches, setMatches] = useState<any[]>([]);
   const { profile } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchListings();
+    fetchMatches();
   }, []);
 
   const fetchListings = async () => {
@@ -61,6 +63,33 @@ export const HomeTab = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMatches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          listings (
+            title,
+            origin,
+            destination,
+            price_usd
+          ),
+          payments (
+            id,
+            status
+          )
+        `)
+        .or(`sender_id.eq.${profile?.id},traveler_id.eq.${profile?.id}`)
+        .eq('status', 'accepted');
+
+      if (error) throw error;
+      setMatches(data || []);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
     }
   };
 
@@ -121,6 +150,52 @@ export const HomeTab = () => {
         </p>
       </div>
 
+      {/* Active Matches with Payment Options */}
+      {matches.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Active Matches - Ready for Payment</h3>
+          {matches.map((match) => (
+            <Card key={match.id} className="border-2 border-green-200">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-base">{match.listings.title}</CardTitle>
+                  <Badge className="bg-green-600">Matched</Badge>
+                </div>
+              </CardHeader>
+              
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    <span>{match.listings.origin} → {match.listings.destination}</span>
+                  </div>
+                  
+                  <div className="flex items-center text-green-600 font-semibold">
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    ${match.listings.price_usd}
+                  </div>
+
+                  {/* Show payment button for sender, status for traveler */}
+                  {profile?.id === match.sender_id && !match.payments?.length && (
+                    <PaymentButton 
+                      listingId={match.listing_id}
+                      matchId={match.id}
+                      amount={match.listings.price_usd}
+                    />
+                  )}
+                  
+                  {match.payments?.length > 0 && (
+                    <div className="text-center text-sm text-blue-600 font-medium">
+                      💳 Payment in escrow - Check Payments tab for delivery confirmation
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Recent Listings</h3>
         <Button variant="outline" size="sm" onClick={fetchListings}>
@@ -167,7 +242,7 @@ export const HomeTab = () => {
                   <div className="flex items-center">
                     <DollarSign className="h-4 w-4 mr-1 text-green-600" />
                     <span className="font-semibold text-green-600">
-                      ${listing.price_usd}
+                      ${Math.max(listing.price_usd, 5)} {listing.price_usd < 5 && <span className="text-xs text-gray-500">(min $5)</span>}
                     </span>
                   </div>
                   

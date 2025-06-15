@@ -8,6 +8,7 @@ import { SearchTab } from '@/components/dashboard/SearchTab';
 import { CreateTab } from '@/components/dashboard/CreateTab';
 import { MessagesTab } from '@/components/dashboard/MessagesTab';
 import { ProfileTab } from '@/components/dashboard/ProfileTab';
+import { PaymentsTab } from '@/components/dashboard/PaymentsTab';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('home');
@@ -19,6 +20,7 @@ export default function Dashboard() {
       case 'search': return 'Find Matches';
       case 'create': return 'Create Listing';
       case 'messages': return 'Messages';
+      case 'payments': return 'Payments';
       case 'profile': return 'Profile';
       default: return 'CarryConnect';
     }
@@ -30,6 +32,7 @@ export default function Dashboard() {
       case 'search': return <SearchTab />;
       case 'create': return <CreateTab />;
       case 'messages': return <MessagesTab />;
+      case 'payments': return <PaymentsTab />;
       case 'profile': return <ProfileTab />;
       default: return <HomeTab />;
     }

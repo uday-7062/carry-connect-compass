@@ -9,6 +9,47 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      delivery_confirmations: {
+        Row: {
+          confirmed_by_sender: boolean | null
+          confirmed_by_traveler: boolean | null
+          created_at: string
+          id: string
+          payment_id: string | null
+          sender_confirmed_at: string | null
+          traveler_confirmed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          confirmed_by_sender?: boolean | null
+          confirmed_by_traveler?: boolean | null
+          created_at?: string
+          id?: string
+          payment_id?: string | null
+          sender_confirmed_at?: string | null
+          traveler_confirmed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confirmed_by_sender?: boolean | null
+          confirmed_by_traveler?: boolean | null
+          created_at?: string
+          id?: string
+          payment_id?: string | null
+          sender_confirmed_at?: string | null
+          traveler_confirmed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_confirmations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           available_space_kg: number | null
@@ -162,6 +203,70 @@ export type Database = {
           {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount_usd: number
+          created_at: string
+          id: string
+          listing_id: string | null
+          platform_fee_usd: number
+          sender_id: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          traveler_amount_usd: number
+          traveler_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_usd: number
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          platform_fee_usd: number
+          sender_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          traveler_amount_usd: number
+          traveler_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_usd?: number
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          platform_fee_usd?: number
+          sender_id?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          traveler_amount_usd?: number
+          traveler_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_traveler_id_fkey"
+            columns: ["traveler_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
