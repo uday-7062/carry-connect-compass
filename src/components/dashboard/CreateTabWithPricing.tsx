@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CitySelector } from '@/components/ui/city-selector';
 import { PriceEstimator } from '@/components/ai/PriceEstimator';
 import { FlightTicketParser } from '@/components/ai/FlightTicketParser';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays, MapPin, Package, FileText, Calculator, Plane } from 'lucide-react';
+import { CalendarDays, Package, FileText, Calculator, Plane } from 'lucide-react';
 
 export const CreateTabWithPricing = () => {
   const [formData, setFormData] = useState({
@@ -172,7 +173,7 @@ export const CreateTabWithPricing = () => {
                       : 'border-gray-200'
                   }`}
                 >
-                  <MapPin className="h-5 w-5 mx-auto mb-1" />
+                  <div className="h-5 w-5 mx-auto mb-1 bg-blue-500 rounded"></div>
                   <div className="text-sm font-medium">Offer Space</div>
                 </button>
               </div>
@@ -189,26 +190,22 @@ export const CreateTabWithPricing = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="origin">Origin</Label>
-                  <Input
-                    id="origin"
-                    value={formData.origin}
-                    onChange={(e) => setFormData(prev => ({ ...prev, origin: e.target.value }))}
-                    placeholder="City, Country"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="destination">Destination</Label>
-                  <Input
-                    id="destination"
-                    value={formData.destination}
-                    onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
-                    placeholder="City, Country"
-                    required
-                  />
-                </div>
+                <CitySelector
+                  id="origin"
+                  label="Origin"
+                  value={formData.origin}
+                  onChange={(value) => setFormData(prev => ({ ...prev, origin: value }))}
+                  placeholder="Search origin city..."
+                  required
+                />
+                <CitySelector
+                  id="destination"
+                  label="Destination"
+                  value={formData.destination}
+                  onChange={(value) => setFormData(prev => ({ ...prev, destination: value }))}
+                  placeholder="Search destination city..."
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
