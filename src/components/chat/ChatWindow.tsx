@@ -1,6 +1,8 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +12,9 @@ import { Send, Paperclip, Image, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PaymentButton } from '@/components/PaymentButton';
 import { RatingDialog } from '@/components/RatingDialog';
+import { TrustBadges } from '@/components/TrustBadges';
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 interface Message {
   id: string;
@@ -46,6 +51,7 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
   const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
   const [hasRated, setHasRated] = useState(false);
   const [checkingRatingStatus, setCheckingRatingStatus] = useState(true);
+  const [otherUserProfile, setOtherUserProfile] = useState<Profile | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -105,6 +111,29 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const fetchOtherUserProfile = async () => {
+      if (!otherUser.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', otherUser.id)
+          .maybeSingle();
+        if (error) throw error;
+        setOtherUserProfile(data);
+      } catch (error) {
+        console.error("Error fetching other user's profile:", error);
+        toast({
+          title: "Error",
+          description: "Could not load user details.",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchOtherUserProfile();
+  }, [otherUser.id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -221,6 +250,11 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
             </Avatar>
             <div>
               <CardTitle className="text-base">{otherUser.full_name}</CardTitle>
+              {otherUserProfile && (
+                <div className="mt-1">
+                  <TrustBadges profile={otherUserProfile} size="sm" />
+                </div>
+              )}
               {typing && <p className="text-xs text-gray-500">typing...</p>}
             </div>
           </div>
