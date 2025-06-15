@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PriceEstimator } from '@/components/ai/PriceEstimator';
+import { FlightTicketParser } from '@/components/ai/FlightTicketParser';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays, MapPin, Package, FileText, Calculator } from 'lucide-react';
+import { CalendarDays, MapPin, Package, FileText, Calculator, Plane } from 'lucide-react';
 
 export const CreateTabWithPricing = () => {
   const [formData, setFormData] = useState({
@@ -25,8 +26,23 @@ export const CreateTabWithPricing = () => {
   });
   const [loading, setLoading] = useState(false);
   const [showPriceEstimator, setShowPriceEstimator] = useState(false);
+  const [showTicketParser, setShowTicketParser] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
+
+  const handleFlightDataExtracted = (data: {
+    origin: string;
+    destination: string;
+    travel_date: string;
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      origin: data.origin || prev.origin,
+      destination: data.destination || prev.destination,
+      travel_date: data.travel_date || prev.travel_date
+    }));
+    setShowTicketParser(false);
+  };
 
   const handlePriceEstimated = (price: number) => {
     setFormData(prev => ({ ...prev, price_usd: price.toString() }));
@@ -115,6 +131,24 @@ export const CreateTabWithPricing = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowTicketParser(!showTicketParser)}
+                className="w-full mb-4"
+              >
+                <Plane className="h-4 w-4 mr-2" />
+                {showTicketParser ? 'Hide' : 'Upload'} Flight Ticket
+              </Button>
+            </div>
+
+            {showTicketParser && (
+              <div className="mb-6">
+                <FlightTicketParser onDataExtracted={handleFlightDataExtracted} />
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex gap-4">
                 <button
