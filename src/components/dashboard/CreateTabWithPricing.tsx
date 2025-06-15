@@ -8,7 +8,7 @@ import { PriceEstimator } from '@/components/ai/PriceEstimator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays, MapPin, Package, FileText } from 'lucide-react';
+import { CalendarDays, MapPin, Package, FileText, Calculator } from 'lucide-react';
 
 export const CreateTabWithPricing = () => {
   const [formData, setFormData] = useState({
@@ -24,11 +24,29 @@ export const CreateTabWithPricing = () => {
     price_usd: ''
   });
   const [loading, setLoading] = useState(false);
+  const [showPriceEstimator, setShowPriceEstimator] = useState(false);
   const { profile } = useAuth();
   const { toast } = useToast();
 
   const handlePriceEstimated = (price: number) => {
     setFormData(prev => ({ ...prev, price_usd: price.toString() }));
+    setShowPriceEstimator(false);
+    toast({
+      title: "Price Updated",
+      description: `AI suggested price: $${price}`,
+    });
+  };
+
+  const handleAIEstimate = () => {
+    if (!formData.origin || !formData.destination) {
+      toast({
+        title: "Missing Information", 
+        description: "Please enter origin and destination first",
+        variant: "destructive"
+      });
+      return;
+    }
+    setShowPriceEstimator(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,16 +193,28 @@ export const CreateTabWithPricing = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="price_usd">Price (USD)</Label>
-                  <Input
-                    id="price_usd"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.price_usd}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price_usd: e.target.value }))}
-                    placeholder="Use AI estimation"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="price_usd"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.price_usd}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price_usd: e.target.value }))}
+                      placeholder="Enter price"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAIEstimate}
+                      className="whitespace-nowrap"
+                    >
+                      <Calculator className="h-4 w-4 mr-1" />
+                      AI Estimate
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -245,12 +275,33 @@ export const CreateTabWithPricing = () => {
           </CardContent>
         </Card>
 
-        <PriceEstimator
-          origin={formData.origin}
-          destination={formData.destination}
-          weight={parseFloat(formData.weight_kg) || 1}
-          onPriceEstimated={handlePriceEstimated}
-        />
+        {showPriceEstimator ? (
+          <PriceEstimator
+            origin={formData.origin}
+            destination={formData.destination}
+            weight={parseFloat(formData.weight_kg) || 1}
+            onPriceEstimated={handlePriceEstimated}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Need Help with Pricing?</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600 mb-4">
+                Our AI can help estimate a fair price based on distance, weight, and market rates.
+              </p>
+              <Button 
+                onClick={handleAIEstimate}
+                className="w-full"
+                variant="outline"
+              >
+                <Calculator className="h-4 w-4 mr-2" />
+                Get AI Price Estimate
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
