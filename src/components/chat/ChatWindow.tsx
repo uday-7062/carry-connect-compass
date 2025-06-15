@@ -16,13 +16,15 @@ import { ChatMessageImage } from './ChatMessageImage';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
+type MessageType = 'text' | 'image' | 'file';
+
 interface Message {
   id: string;
   content: string;
   sender_id: string;
   created_at: string;
   is_read: boolean;
-  message_type: 'text' | 'image' | 'file';
+  message_type: MessageType;
   file_url: string | null;
   file_name: string | null;
 }
@@ -42,6 +44,13 @@ interface ChatWindowProps {
   senderId: string;
   matchStatus: string;
 }
+
+// Helper to map any string to MessageType (fallback to 'text')
+const toMessageType = (type: any): MessageType => {
+  if (type === 'image') return 'image';
+  if (type === 'file') return 'file';
+  return 'text';
+};
 
 export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, matchStatus }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,8 +87,12 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
           filter: `match_id=eq.${matchId}`
         },
         (payload) => {
-          const newMsg = payload.new as Message;
-          setMessages(prev => [...prev, newMsg]);
+          const newMsg = payload.new as any;
+          const mappedMsg: Message = {
+            ...newMsg,
+            message_type: toMessageType(newMsg.message_type),
+          };
+          setMessages(prev => [...prev, mappedMsg]);
           scrollToBottom();
           
           // Mark as read if not from current user
@@ -97,9 +110,13 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
           filter: `match_id=eq.${matchId}`
         },
         (payload) => {
-          const updatedMsg = payload.new as Message;
+          const updatedMsg = payload.new as any;
+          const mappedMsg: Message = {
+            ...updatedMsg,
+            message_type: toMessageType(updatedMsg.message_type),
+          };
           setMessages(prev => 
-            prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg)
+            prev.map(msg => msg.id === mappedMsg.id ? mappedMsg : msg)
           );
         }
       )
@@ -150,7 +167,13 @@ export const ChatWindow = ({ matchId, otherUser, onClose, listing, senderId, mat
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      // Map message_type to correct union type
+      setMessages(
+        (data || []).map((msg: any) => ({
+          ...msg,
+          message_type: toMessageType(msg.message_type),
+        }))
+      );
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
