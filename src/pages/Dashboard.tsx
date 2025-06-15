@@ -39,15 +39,17 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 select-none-mobile">
       <MobileHeader 
         title={getTabTitle()}
         showProfile={activeTab !== 'profile'}
         onProfile={() => setActiveTab('profile')}
       />
       
-      <main className="pb-20 pt-4">
-        {renderContent()}
+      <main className="pb-20 pt-2 px-1 safe-area-left safe-area-right min-h-[calc(100vh-136px)]">
+        <div className="max-w-md mx-auto">
+          {renderContent()}
+        </div>
       </main>
       
       <BottomNav 
