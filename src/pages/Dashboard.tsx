@@ -17,12 +17,12 @@ export default function Dashboard() {
   const [showTooltips, setShowTooltips] = useState(false);
   const { profile } = useAuth();
 
-  // Check if user needs onboarding
-  const needsOnboarding = profile && !profile.onboarding_completed;
+  // Check if user needs onboarding - check for the field existence first
+  const needsOnboarding = profile && ('onboarding_completed' in profile ? !profile.onboarding_completed : true);
   
   // Check if user should see tooltips
   useEffect(() => {
-    if (profile?.onboarding_completed && !localStorage.getItem('tooltips_shown')) {
+    if (profile && 'onboarding_completed' in profile && profile.onboarding_completed && !localStorage.getItem('tooltips_shown')) {
       setShowTooltips(true);
     }
   }, [profile]);
@@ -83,4 +83,28 @@ export default function Dashboard() {
       )}
     </div>
   );
+
+  function getTabTitle() {
+    switch (activeTab) {
+      case 'home': return 'CarryConnect';
+      case 'search': return 'Find Matches';
+      case 'create': return 'Create Listing';
+      case 'messages': return 'Messages';
+      case 'payments': return 'Payments';
+      case 'profile': return 'Profile';
+      default: return 'CarryConnect';
+    }
+  }
+
+  function renderContent() {
+    switch (activeTab) {
+      case 'home': return <HomeTab />;
+      case 'search': return <SearchTab />;
+      case 'create': return <CreateTabWithPricing />;
+      case 'messages': return <MessagesTab />;
+      case 'payments': return <PaymentsTab />;
+      case 'profile': return <ProfileTab />;
+      default: return <HomeTab />;
+    }
+  }
 }

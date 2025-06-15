@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Luggage, Send, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -20,7 +21,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { profile, updateProfile } = useAuth();
+  const { profile, user } = useAuth();
   const { toast } = useToast();
 
   const handleRoleSelection = () => {
@@ -28,14 +29,19 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   };
 
   const handleProfileCompletion = async () => {
+    if (!user) return;
+    
     setLoading(true);
     try {
-      const { error } = await updateProfile({
-        role,
-        phone,
-        address,
-        onboarding_completed: true
-      });
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          role,
+          phone,
+          address,
+          onboarding_completed: true
+        })
+        .eq('id', user.id);
       
       if (error) throw error;
       

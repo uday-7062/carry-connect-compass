@@ -285,6 +285,7 @@ export type Database = {
           id: string
           id_document_url: string | null
           id_verified: Database["public"]["Enums"]["verification_status"] | null
+          onboarding_completed: boolean | null
           phone: string | null
           rating: number | null
           role: Database["public"]["Enums"]["user_role"]
@@ -304,6 +305,7 @@ export type Database = {
           id_verified?:
             | Database["public"]["Enums"]["verification_status"]
             | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           rating?: number | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -323,6 +325,7 @@ export type Database = {
           id_verified?:
             | Database["public"]["Enums"]["verification_status"]
             | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           rating?: number | null
           role?: Database["public"]["Enums"]["user_role"]
