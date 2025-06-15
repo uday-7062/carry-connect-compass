@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Plane, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import Tesseract from 'tesseract.js';
 
 interface FlightTicketParserProps {
   onDataExtracted: (data: {
@@ -61,61 +61,133 @@ export const FlightTicketParser = ({ onDataExtracted }: FlightTicketParserProps)
 
     setLoading(true);
     try {
-      // Convert file to base64
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64Data = e.target?.result as string;
+      // Use Tesseract.js to extract text from the image
+      const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+        logger: m => console.log(m) // Optional: log progress
+      });
+
+      console.log('Extracted text:', text);
+
+      // Simple text parsing logic to extract flight information
+      const extractedData = parseFlightText(text);
+
+      if (extractedData.origin && extractedData.destination && extractedData.travel_date) {
+        onDataExtracted(extractedData);
         
-        // Call our edge function to parse the ticket
-        const { data, error } = await supabase.functions.invoke('parse-flight-ticket', {
-          body: { 
-            image: base64Data.split(',')[1], // Remove data:image/jpeg;base64, prefix
-            mimeType: file.type
-          }
+        toast({
+          title: "Ticket Parsed Successfully!",
+          description: "Flight information has been extracted and filled in the form.",
         });
-
-        if (error) {
-          console.error('Parse error:', error);
-          toast({
-            title: "Parsing Failed",
-            description: "Could not extract information from the ticket. Please try again or enter manually.",
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
-
-        if (data?.origin && data?.destination && data?.travel_date) {
-          onDataExtracted({
-            origin: data.origin,
-            destination: data.destination,
-            travel_date: data.travel_date
-          });
-          
-          toast({
-            title: "Ticket Parsed Successfully!",
-            description: "Flight information has been extracted and filled in the form.",
-          });
-        } else {
-          toast({
-            title: "Incomplete Information",
-            description: "Could not extract all required information. Please verify and complete manually.",
-            variant: "destructive"
-          });
-        }
+      } else {
+        toast({
+          title: "Partial Information Extracted",
+          description: "Some information was found. Please verify and complete manually.",
+        });
         
-        setLoading(false);
-      };
-      reader.readAsDataURL(file);
+        // Even if incomplete, pass what we found
+        onDataExtracted(extractedData);
+      }
+      
     } catch (error: any) {
       console.error('Error parsing ticket:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to parse ticket",
+        title: "Parsing Failed",
+        description: "Could not extract information from the ticket. Please try a clearer image or enter manually.",
         variant: "destructive"
       });
+    } finally {
       setLoading(false);
     }
+  };
+
+  const parseFlightText = (text: string): { origin: string; destination: string; travel_date: string } => {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    let origin = '';
+    let destination = '';
+    let travel_date = '';
+
+    // Common airport code patterns (3 letters)
+    const airportCodeRegex = /\b[A-Z]{3}\b/g;
+    const dateRegex = /\b(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}|\d{4}[-\/]\d{1,2}[-\/]\d{1,2})\b/g;
+    
+    // Extract airport codes
+    const airportCodes = [];
+    for (const line of lines) {
+      const matches = line.match(airportCodeRegex);
+      if (matches) {
+        airportCodes.push(...matches);
+      }
+    }
+
+    // Extract dates
+    const dates = [];
+    for (const line of lines) {
+      const matches = line.match(dateRegex);
+      if (matches) {
+        dates.push(...matches);
+      }
+    }
+
+    // Try to identify origin and destination
+    if (airportCodes.length >= 2) {
+      origin = airportCodes[0];
+      destination = airportCodes[1];
+    }
+
+    // Convert first found date to YYYY-MM-DD format
+    if (dates.length > 0) {
+      try {
+        const dateStr = dates[0];
+        let date: Date;
+        
+        if (dateStr.includes('/')) {
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            // Assume MM/DD/YYYY or DD/MM/YYYY format
+            if (parts[2].length === 4) {
+              date = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            } else {
+              date = new Date(parseInt(`20${parts[2]}`), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            }
+          } else {
+            date = new Date(dateStr);
+          }
+        } else {
+          date = new Date(dateStr);
+        }
+        
+        if (!isNaN(date.getTime())) {
+          travel_date = date.toISOString().split('T')[0];
+        }
+      } catch (e) {
+        console.log('Date parsing failed:', e);
+      }
+    }
+
+    // Try to find city names if airport codes not found
+    if (!origin || !destination) {
+      const cityKeywords = ['FROM', 'TO', 'DEPART', 'ARRIVE', 'DEPARTURE', 'ARRIVAL'];
+      for (const line of lines) {
+        const upperLine = line.toUpperCase();
+        for (const keyword of cityKeywords) {
+          if (upperLine.includes(keyword)) {
+            const parts = line.split(/\s+/);
+            const keywordIndex = parts.findIndex(part => part.toUpperCase().includes(keyword));
+            if (keywordIndex >= 0 && keywordIndex < parts.length - 1) {
+              const cityCandidate = parts[keywordIndex + 1];
+              if (keyword.includes('FROM') || keyword.includes('DEPART')) {
+                origin = origin || cityCandidate;
+              } else if (keyword.includes('TO') || keyword.includes('ARRIVE')) {
+                destination = destination || cityCandidate;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return { origin, destination, travel_date };
   };
 
   return (
@@ -137,7 +209,7 @@ export const FlightTicketParser = ({ onDataExtracted }: FlightTicketParserProps)
             className="cursor-pointer"
           />
           <p className="text-sm text-gray-500">
-            Upload your flight ticket to automatically extract travel details
+            Upload your flight ticket image to automatically extract travel details
           </p>
         </div>
 
@@ -169,6 +241,12 @@ export const FlightTicketParser = ({ onDataExtracted }: FlightTicketParserProps)
             </>
           )}
         </Button>
+
+        {loading && (
+          <p className="text-sm text-gray-500 text-center">
+            Processing image... This may take a few moments.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
