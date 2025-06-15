@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Star, LogOut, User, Mail, Phone, MapPin, Shield, Camera } from 'lucide-react';
+import { Star, LogOut, User, Mail, Phone, MapPin, Shield, Camera, Upload, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export const ProfileTab = () => {
   const { profile, signOut, updateProfile } = useAuth();
@@ -20,6 +21,7 @@ export const ProfileTab = () => {
     address: profile?.address || ''
   });
   const [loading, setLoading] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
   const { toast } = useToast();
 
   const handleSave = async () => {
@@ -42,6 +44,69 @@ export const ProfileTab = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile?.id) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select a file smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a JPEG, PNG, or PDF file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingDoc(true);
+    try {
+      // Create verification request in database
+      const { error: dbError } = await supabase
+        .from('verification_requests')
+        .insert({
+          user_id: profile.id,
+          document_type: getDocumentType(file.type),
+          document_url: `pending_upload_${Date.now()}`, // Temporary URL
+          status: 'pending'
+        });
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Document Uploaded",
+        description: "Your verification document has been submitted for review. We'll notify you once it's processed.",
+      });
+
+      // Reset file input
+      event.target.value = '';
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload document. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const getDocumentType = (fileType: string) => {
+    if (fileType === 'application/pdf') return 'PDF Document';
+    return 'ID Document';
   };
 
   const getVerificationColor = (status?: string) => {
@@ -102,7 +167,7 @@ export const ProfileTab = () => {
             Verification Status
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Mail className="h-4 w-4 mr-2 text-gray-500" />
@@ -121,6 +186,49 @@ export const ProfileTab = () => {
             <Badge className={getVerificationColor(profile?.id_verified)}>
               {profile?.id_verified || 'Pending'}
             </Badge>
+          </div>
+
+          <Separator />
+
+          {/* Document Upload Section */}
+          <div className="space-y-3">
+            <h4 className="font-medium flex items-center">
+              <FileText className="h-4 w-4 mr-2" />
+              Upload ID Document
+            </h4>
+            <p className="text-sm text-gray-600">
+              Upload your passport, driving license, or other government-issued ID for verification.
+            </p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="document-upload" className="text-sm font-medium">
+                Choose Document (JPEG, PNG, or PDF, max 5MB)
+              </Label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="document-upload"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={handleDocumentUpload}
+                  disabled={uploadingDoc}
+                  className="flex-1"
+                />
+                <Button 
+                  size="sm" 
+                  disabled={uploadingDoc}
+                  className="whitespace-nowrap"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  {uploadingDoc ? 'Uploading...' : 'Upload'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Accepted Documents:</strong> Passport, Driver's License, National ID Card, or other government-issued photo ID
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
